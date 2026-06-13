@@ -15,6 +15,8 @@
   let selectedContactId = null;
   let detailContactId = null;
   let currentTab = 'genealogy';
+  let genealogyViewMode = 'tree'; // 'tree' | 'list'
+  let treeRootId = null;
   let nextId = 1;
 
   // ---- DOM refs ----
@@ -32,22 +34,35 @@
     els.contactList = $('#contactList');
     els.recordCount = $('#recordCount');
     els.addContactBtn = $('#addContactBtn');
-    els.exportVcfBtn = $('#exportVcfBtn');
-    els.exportJsonBtn = $('#exportJsonBtn');
     els.importJsonBtn = $('#importJsonBtn');
     els.importJsonInput = $('#importJsonInput');
 
     els.tabGenealogy = $('#tabGenealogy');
     els.tabContacts = $('#tabContacts');
+    els.tabExport = $('#tabExport');
     els.genealogyPanel = $('#genealogyPanel');
     els.contactsPanel = $('#contactsPanel');
+    els.exportPanel = $('#exportPanel');
     els.contactTableBody = $('#contactTableBody');
     els.genealogyCanvas = $('#genealogyCanvas');
     els.genealogyEmpty = $('#genealogyEmpty');
+    els.genealogyTitle = $('#genealogyTitle');
     els.graphSvg = $('#graphSvg');
     els.graphNodes = $('#graphNodes');
     els.graphLinks = $('#graphLinks');
     els.contactsEmpty = $('#contactsEmpty');
+
+    els.viewTreeBtn = $('#viewTreeBtn');
+    els.viewListBtn = $('#viewListBtn');
+    els.familyListPanel = $('#familyListPanel');
+    els.familyList = $('#familyList');
+    els.familyListEmpty = $('#familyListEmpty');
+
+    els.sidebarExportBtn = $('#sidebarExportBtn');
+    els.exportVcfAllBtn = $('#exportVcfAllBtn');
+    els.exportVcfSelectedBtn = $('#exportVcfSelectedBtn');
+    els.exportJsonFullBtn = $('#exportJsonFullBtn');
+    els.importJsonFromExportBtn = $('#importJsonFromExportBtn');
 
     els.detailPanel = $('#detailPanel');
     els.detailTitle = $('#detailTitle');
@@ -326,149 +341,262 @@
     }).join('');
   }
 
-  // ---- Render: Genealogy Graph ----
+  // ---- Genealogy View Dispatcher ----
   function renderGenealogyGraph() {
-    const list = getFilteredList();
-    els.genealogyEmpty.hidden = list.length > 0;
-
-    if (list.length === 0) {
-      els.graphNodes.innerHTML = '';
-      els.graphLinks.innerHTML = '';
-      return;
+    if (genealogyViewMode === 'list') {
+      renderFamilyListView();
+    } else {
+      if (treeRootId) {
+        renderTree(treeRootId);
+      } else {
+        const list = getFilteredList();
+        if (list.length > 0) {
+          renderTree(list[0].id);
+        } else {
+          els.genealogyEmpty.hidden = false;
+          els.graphSvg.setAttribute('viewBox', '0 0 100 100');
+          els.graphNodes.innerHTML = '';
+          els.graphLinks.innerHTML = '';
+        }
+      }
     }
+  }
+
+  // ---- Render: Focused Family Tree (SVG) ----
+  function renderTree(rootContactId) {
+    const root = getContact(rootContactId);
+    if (!root) return;
+
+    treeRootId = rootContactId;
+    selectedContactId = rootContactId;
+    els.genealogyEmpty.hidden = true;
+    els.familyListPanel.hidden = true;
+    els.genealogyCanvas.hidden = false;
+    els.genealogyTitle.textContent = `Family Tree — ${fullName(root)}`;
 
     const svg = els.graphSvg;
     const rect = svg.getBoundingClientRect();
-    const w = rect.width || 800;
-    const h = rect.height || 600;
-    const cx = w / 2;
-    const cy = h / 2;
+    const w = Math.max(rect.width || 800, 600);
+    const h = Math.max(rect.height || 600, 400);
 
-    const nodeRadius = 28;
-    const levelHeight = 110;
-    const nodeSpacing = 140;
+    const cardW = 140;
+    const cardH = 70;
+    const rowGap = 100;
+    const colGap = 30;
+    const topY = 40;
 
-    const idMap = {};
-    list.forEach((c, i) => { idMap[c.id] = i; });
+    const involved = new Set();
+    involved.add(rootContactId);
 
-    const nodePositions = {};
-    const levels = {};
-    const degree = {};
+    const parents = [];
+    const children = [];
+    let spouse = null;
 
-    list.forEach(c => { degree[c.id] = 0; });
-    relationships.forEach(r => {
-      if (idMap[r.fromId] !== undefined && idMap[r.toId] !== undefined) {
-        degree[r.fromId] = (degree[r.fromId] || 0) + 1;
-        degree[r.toId] = (degree[r.toId] || 0) + 1;
-      }
+    const rels = getRelationsFor(rootContactId);
+    rels.forEach(r => {
+      const otherId = r.fromId === rootContactId ? r.toId : r.fromId;
+      const displayType = r.fromId === rootContactId ? r.type : getInverseType(r.type);
+      involved.add(otherId);
+      if (displayType === 'parent') parents.push(otherId);
+      else if (displayType === 'child') children.push(otherId);
+      else if (displayType === 'spouse') spouse = otherId;
     });
 
-    list.forEach(c => {
-      levels[c.id] = 0;
-    });
-
-    let changed = true;
-    while (changed) {
-      changed = false;
-      relationships.forEach(r => {
-        const fi = idMap[r.fromId];
-        const ti = idMap[r.toId];
-        if (fi === undefined || ti === undefined) return;
-        if (r.type === 'parent') {
-          if (levels[r.toId] <= levels[r.fromId]) {
-            levels[r.toId] = levels[r.fromId] + 1;
-            changed = true;
-          }
-        } else if (r.type === 'child') {
-          if (levels[r.fromId] <= levels[r.toId]) {
-            levels[r.fromId] = levels[r.toId] + 1;
-            changed = true;
-          }
+    // Walk up one more generation for displayed parents
+    const grandParents = [];
+    parents.forEach(pid => {
+      getRelationsFor(pid).forEach(r => {
+        const otherId = r.fromId === pid ? r.toId : r.fromId;
+        const dt = r.fromId === pid ? r.type : getInverseType(r.type);
+        if (dt === 'parent' && !involved.has(otherId)) {
+          grandParents.push(otherId);
+          involved.add(otherId);
         }
       });
-    }
-
-    const levelGroups = {};
-    list.forEach(c => {
-      const lv = levels[c.id] || 0;
-      if (!levelGroups[lv]) levelGroups[lv] = [];
-      levelGroups[lv].push(c.id);
     });
 
-    const maxInLevel = Math.max(...Object.values(levelGroups).map(arr => arr.length), 1);
-    const totalW = Math.max(w, maxInLevel * nodeSpacing + 100);
+    // Build the three rows
+    const rows = [];
+    const topRow = [...new Set([...grandParents, ...parents])];
+    rows.push(topRow);
+    const midRow = spouse ? [rootContactId, spouse] : [rootContactId];
+    rows.push(midRow);
+    rows.push(children);
 
-    Object.keys(levelGroups).forEach(lv => {
-      const ids = levelGroups[lv];
-      const count = ids.length;
-      const startX = (totalW - (count - 1) * nodeSpacing) / 2;
-      ids.forEach((id, idx) => {
-        const y = 60 + parseInt(lv) * levelHeight;
-        const x = startX + idx * nodeSpacing;
-        nodePositions[id] = { x, y };
+    const maxCols = Math.max(topRow.length, midRow.length, children.length, 1);
+    const totalW = Math.max(w, maxCols * (cardW + colGap) + 80);
+    const totalH = Math.max(h, 3 * (cardH + rowGap) + 80);
+
+    svg.setAttribute('viewBox', `0 0 ${totalW} ${totalH}`);
+
+    const positions = {};
+    const rowCenters = [topY, topY + cardH + rowGap, topY + 2 * (cardH + rowGap)];
+
+    rows.forEach((row, ri) => {
+      const count = row.length;
+      const startX = (totalW - count * cardW - (count - 1) * colGap) / 2;
+      row.forEach((id, ci) => {
+        positions[id] = { x: startX + ci * (cardW + colGap), y: rowCenters[ri], row: ri };
       });
     });
 
-    list.forEach((c, idx) => {
-      if (!nodePositions[c.id]) {
-        nodePositions[c.id] = {
-          x: 60 + (idx % 5) * nodeSpacing,
-          y: 60 + Math.floor(idx / 5) * levelHeight,
-        };
-      }
-    });
-
-    const viewBox = `0 0 ${totalW} ${Math.max(h, Object.keys(levelGroups).length * levelHeight + 80)}`;
-    svg.setAttribute('viewBox', viewBox);
-
-    els.graphNodes.innerHTML = list.map(c => {
-      const pos = nodePositions[c.id] || { x: cx, y: cy };
+    // Render nodes as cards
+    const allIds = [...involved];
+    els.graphNodes.innerHTML = allIds.map(id => {
+      const c = getContact(id);
+      if (!c) return '';
+      const pos = positions[id];
+      if (!pos) return '';
+      const isRoot = id === rootContactId;
+      const isSpouse = id === spouse;
+      const borderColor = isRoot ? 'var(--accent-primary)' : (isSpouse ? 'var(--accent-warning)' : 'var(--slate-600)');
+      const borderWidth = isRoot ? 2.5 : 1.5;
+      const label = fullName(c);
+      const yearLabel = c.birthDate ? c.birthDate.slice(0, 4) : '';
+      const info = c.birthPlace ? c.birthPlace : (c.phone || '');
       return `
-        <g class="graph-node" data-id="${c.id}" transform="translate(${pos.x},${pos.y})">
-          <circle r="${nodeRadius}" fill="${avatarColor(c.id)}" stroke="${c.id === selectedContactId ? 'var(--accent-primary)' : 'var(--slate-700)'}" stroke-width="${c.id === selectedContactId ? 3 : 1.5}" />
-          <text dy="1">${initials(c)}</text>
+        <g class="graph-node tree-card" data-id="${c.id}" transform="translate(${pos.x},${pos.y})">
+          <rect x="0" y="0" width="${cardW}" height="${cardH}" rx="10" fill="var(--slate-800)" stroke="${borderColor}" stroke-width="${borderWidth}" />
+          <circle cx="22" cy="${cardH / 2}" r="16" fill="${avatarColor(c.id)}" />
+          <text x="46" y="26" font-size="12" font-weight="600" fill="var(--slate-100)">${label}</text>
+          <text x="46" y="44" font-size="10" fill="var(--slate-400)">${yearLabel}${info ? ' · ' + info.slice(0, 18) : ''}</text>
+          ${isRoot ? '<text x="' + (cardW - 8) + '" y="12" font-size="9" fill="var(--accent-primary)" text-anchor="end">ROOT</text>' : ''}
         </g>
       `;
     }).join('');
 
+    // Render links as SVG paths
     els.graphLinks.innerHTML = '';
-    relationships.forEach(r => {
-      const fi = idMap[r.fromId];
-      const ti = idMap[r.toId];
-      if (fi === undefined || ti === undefined) return;
+    rels.forEach(r => {
+      const fromPos = positions[r.fromId];
+      const toPos = positions[r.toId];
+      if (!fromPos || !toPos) return;
 
-      const from = nodePositions[r.fromId];
-      const to = nodePositions[r.toId];
-      if (!from || !to) return;
-
-      const dx = to.x - from.x;
-      const dy = to.y - from.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist < 1) return;
-
-      const nx = dx / dist;
-      const ny = dy / dist;
-      const x1 = from.x + nx * nodeRadius;
-      const y1 = from.y + ny * nodeRadius;
-      const x2 = to.x - nx * nodeRadius;
-      const y2 = to.y - ny * nodeRadius;
+      const x1 = fromPos.x + cardW / 2;
+      const y1 = fromPos.y + cardH;
+      const x2 = toPos.x + cardW / 2;
+      const y2 = toPos.y;
 
       const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      let d;
-      if (r.type === 'spouse') {
-        const mx = (from.x + to.x) / 2;
-        const my = (from.y + to.y) / 2 - 30;
-        d = `M ${x1} ${y1} Q ${mx} ${my} ${x2} ${y2}`;
-      } else {
-        d = `M ${x1} ${y1} L ${x2} ${y2}`;
-      }
+      const midY = (y1 + y2) / 2;
+      const d = `M ${x1} ${y1} L ${x1} ${midY} L ${x2} ${midY} L ${x2} ${y2}`;
       path.setAttribute('d', d);
-      path.setAttribute('class', 'graph-link');
+      path.setAttribute('class', 'tree-link');
       path.setAttribute('data-from', r.fromId);
       path.setAttribute('data-to', r.toId);
       path.setAttribute('data-type', r.type);
       els.graphLinks.appendChild(path);
     });
+
+    // Draw spouse connections (curved)
+    if (spouse) {
+      const rootPos = positions[rootContactId];
+      const spPos = positions[spouse];
+      if (rootPos && spPos && rootPos.row === spPos.row) {
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        const x1 = rootPos.x + cardW;
+        const y1 = rootPos.y + cardH / 2;
+        const x2 = spPos.x;
+        const y2 = spPos.y + cardH / 2;
+        const mx = (x1 + x2) / 2;
+        const my = Math.min(y1, y2) - 20;
+        const d = `M ${x1} ${y1} Q ${mx} ${my} ${x2} ${y2}`;
+        path.setAttribute('d', d);
+        path.setAttribute('class', 'tree-link spouse-link');
+        path.setAttribute('data-type', 'spouse');
+        els.graphLinks.appendChild(path);
+
+        // Label
+        const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        const lx = (x1 + x2) / 2;
+        const ly = my - 6;
+        label.setAttribute('x', lx);
+        label.setAttribute('y', ly);
+        label.setAttribute('text-anchor', 'middle');
+        label.setAttribute('font-size', '9');
+        label.setAttribute('fill', 'var(--accent-warning)');
+        label.textContent = 'SPOUSE';
+        els.graphLinks.appendChild(label);
+      }
+    }
+
+    // Connect parents to grandparents
+    grandParents.forEach(gpId => {
+      parents.forEach(pId => {
+        const relCheck = relationships.find(r =>
+          (r.fromId === gpId && r.toId === pId) || (r.fromId === pId && r.toId === gpId)
+        );
+        if (!relCheck) return;
+        const fromPos = positions[gpId];
+        const toPos = positions[pId];
+        if (!fromPos || !toPos) return;
+        const x1 = fromPos.x + cardW / 2;
+        const y1 = fromPos.y + cardH;
+        const x2 = toPos.x + cardW / 2;
+        const y2 = toPos.y;
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        const midY = (y1 + y2) / 2;
+        const d = `M ${x1} ${y1} L ${x1} ${midY} L ${x2} ${midY} L ${x2} ${y2}`;
+        path.setAttribute('d', d);
+        path.setAttribute('class', 'tree-link');
+        els.graphLinks.appendChild(path);
+      });
+    });
+  }
+
+  // ---- Render: Family List View ----
+  function renderFamilyListView() {
+    const list = getFilteredList();
+    els.genealogyEmpty.hidden = true;
+    els.genealogyCanvas.hidden = true;
+    els.familyListPanel.hidden = false;
+    els.genealogyTitle.textContent = 'Family Relationships';
+
+    if (list.length === 0) {
+      els.familyListEmpty.hidden = false;
+      els.familyList.innerHTML = '';
+      return;
+    }
+    els.familyListEmpty.hidden = true;
+
+    const items = [];
+    list.forEach(c => {
+      const rels = getRelationsFor(c.id);
+      if (rels.length === 0) return;
+      const related = rels.map(r => {
+        const otherId = r.fromId === c.id ? r.toId : r.fromId;
+        const other = getContact(otherId);
+        if (!other) return null;
+        const displayType = r.fromId === c.id ? r.type : getInverseType(r.type);
+        return { id: other.id, name: fullName(other), type: displayType, initials: initials(other), color: avatarColor(other.id) };
+      }).filter(Boolean);
+
+      items.push({ id: c.id, name: fullName(c), initials: initials(c), color: avatarColor(c.id), relatives: related, notes: c.notes });
+    });
+
+    if (items.length === 0) {
+      els.familyListEmpty.hidden = false;
+      els.familyList.innerHTML = '';
+      return;
+    }
+
+    els.familyList.innerHTML = items.map(item => `
+      <li class="family-list-item" data-id="${item.id}">
+        <div class="family-list-header">
+          <span class="family-list-avatar" style="background:${item.color}">${item.initials}</span>
+          <span class="family-list-name">${item.name}</span>
+        </div>
+        <ul class="family-list-relatives">
+          ${item.relatives.map(rel => `
+            <li class="family-relative-item" data-id="${rel.id}">
+              <span class="family-relative-avatar" style="background:${rel.color}">${rel.initials}</span>
+              <span class="family-relative-name">${rel.name}</span>
+              <span class="relation-badge ${rel.type}">${rel.type.charAt(0).toUpperCase() + rel.type.slice(1)}</span>
+            </li>
+          `).join('')}
+        </ul>
+      </li>
+    `).join('');
   }
 
   // ---- Detail Panel ----
@@ -707,37 +835,46 @@
     return true;
   }
 
-  // ---- Export: vCard ----
-  function exportVcf() {
-    const list = getFilteredList();
+  // ---- Export Studios ----
+
+  function exportToVCard(contact) {
+    const lines = [];
+    lines.push('BEGIN:VCARD');
+    lines.push('VERSION:3.0');
+    lines.push(`FN:${fullName(contact)}`);
+    lines.push(`N:${contact.lastName};${contact.firstName};;;`);
+    if (contact.phone) lines.push(`TEL;TYPE=CELL:${contact.phone}`);
+    if (contact.email) lines.push(`EMAIL;TYPE=INTERNET:${contact.email}`);
+    if (contact.address) lines.push(`ADR;TYPE=HOME:;;${contact.address};;;`);
+    if (contact.birthDate) lines.push(`BDAY:${contact.birthDate}`);
+    if (contact.notes) lines.push(`NOTE:${contact.notes.replace(/\n/g, '\\n')}`);
+    lines.push(`UID:${contact.id}@progeny`);
+    lines.push('END:VCARD');
+    return lines.join('\n');
+  }
+
+  function exportVcf(ids) {
+    const list = ids ? getContactsByIds(ids) : getFilteredList();
     if (list.length === 0) {
       alert('No contacts to export.');
       return;
     }
-
-    const lines = [];
-    list.forEach(c => {
-      lines.push('BEGIN:VCARD');
-      lines.push('VERSION:3.0');
-      lines.push(`FN:${fullName(c)}`);
-      lines.push(`N:${c.lastName};${c.firstName};;;`);
-      if (c.phone) lines.push(`TEL;TYPE=CELL:${c.phone}`);
-      if (c.email) lines.push(`EMAIL;TYPE=INTERNET:${c.email}`);
-      if (c.address) lines.push(`ADR;TYPE=HOME:;;${c.address};;;`);
-      if (c.birthDate) lines.push(`BDAY:${c.birthDate}`);
-      if (c.notes) lines.push(`NOTE:${c.notes.replace(/\n/g, '\\n')}`);
-      lines.push(`UID:${c.id}@progeny`);
-      lines.push('END:VCARD');
-    });
-
-    const blob = new Blob([lines.join('\n')], { type: 'text/vcard;charset=utf-8' });
+    const vcardStr = list.map(c => exportToVCard(c)).join('\n');
+    const blob = new Blob([vcardStr], { type: 'text/vcard;charset=utf-8' });
     downloadBlob(blob, 'contacts.vcf');
   }
 
-  // ---- Export: Full System Backup (.json) ----
+  function exportVcfSelected() {
+    if (!detailContactId) {
+      alert('Open a contact detail view first to export a single contact.');
+      return;
+    }
+    exportVcf([detailContactId]);
+  }
+
   function exportJson() {
     const backup = {
-      version: 1,
+      version: 2,
       exportedAt: new Date().toISOString(),
       contacts,
       relationships,
@@ -746,7 +883,6 @@
     downloadBlob(blob, `progeny-backup-${new Date().toISOString().slice(0, 10)}.json`);
   }
 
-  // ---- Import: JSON ----
   function importJson(file) {
     const reader = new FileReader();
     reader.onload = function (e) {
@@ -785,7 +921,7 @@
   function fullRender() {
     renderContactList();
     renderContactTable();
-    renderGenealogyGraph();
+    if (currentTab === 'genealogy') renderGenealogyGraph();
   }
 
   // ---- Event Binding ----
@@ -843,11 +979,15 @@
       }
     });
 
-    // Graph node click
+    // Graph node / tree card click — re-root tree or open detail
     els.graphNodes.addEventListener('click', function (e) {
       const node = e.target.closest('.graph-node');
-      if (node) {
-        openDetail(parseInt(node.dataset.id, 10));
+      if (!node) return;
+      const id = parseInt(node.dataset.id, 10);
+      if (genealogyViewMode === 'tree' && id !== treeRootId) {
+        renderTree(id);
+      } else {
+        openDetail(id);
       }
     });
 
@@ -977,40 +1117,72 @@
       }
     });
 
-    // Tabs
-    els.tabGenealogy.addEventListener('click', function () {
-      currentTab = 'genealogy';
-      els.tabGenealogy.classList.add('active');
-      els.tabGenealogy.setAttribute('aria-selected', 'true');
-      els.tabContacts.classList.remove('active');
-      els.tabContacts.setAttribute('aria-selected', 'false');
-      els.genealogyPanel.classList.add('active');
-      els.genealogyPanel.hidden = false;
-      els.contactsPanel.classList.remove('active');
-      els.contactsPanel.hidden = true;
-      setTimeout(renderGenealogyGraph, 50);
+    // View toggle (Tree / List)
+    els.viewTreeBtn.addEventListener('click', function () {
+      genealogyViewMode = 'tree';
+      els.viewTreeBtn.classList.add('active');
+      els.viewListBtn.classList.remove('active');
+      renderGenealogyGraph();
     });
 
-    els.tabContacts.addEventListener('click', function () {
-      currentTab = 'contacts';
-      els.tabContacts.classList.add('active');
-      els.tabContacts.setAttribute('aria-selected', 'true');
-      els.tabGenealogy.classList.remove('active');
-      els.tabGenealogy.setAttribute('aria-selected', 'false');
-      els.contactsPanel.classList.add('active');
-      els.contactsPanel.hidden = false;
-      els.genealogyPanel.classList.remove('active');
-      els.genealogyPanel.hidden = true;
+    els.viewListBtn.addEventListener('click', function () {
+      genealogyViewMode = 'list';
+      els.viewListBtn.classList.add('active');
+      els.viewTreeBtn.classList.remove('active');
+      renderGenealogyGraph();
     });
+
+    // Family list item clicks — open detail
+    els.familyList.addEventListener('click', function (e) {
+      const item = e.target.closest('.family-relative-item') || e.target.closest('.family-list-item');
+      if (!item) return;
+      openDetail(parseInt(item.dataset.id, 10));
+    });
+
+    // Tabs
+    function switchTab(tab) {
+      [els.tabGenealogy, els.tabContacts, els.tabExport].forEach(t => {
+        t.classList.remove('active');
+        t.setAttribute('aria-selected', 'false');
+      });
+      [els.genealogyPanel, els.contactsPanel, els.exportPanel].forEach(p => {
+        p.classList.remove('active');
+        p.hidden = true;
+      });
+
+      currentTab = tab;
+      const activeTabBtn = tab === 'genealogy' ? els.tabGenealogy : (tab === 'contacts' ? els.tabContacts : els.tabExport);
+      const activePanel = tab === 'genealogy' ? els.genealogyPanel : (tab === 'contacts' ? els.contactsPanel : els.exportPanel);
+      activeTabBtn.classList.add('active');
+      activeTabBtn.setAttribute('aria-selected', 'true');
+      activePanel.classList.add('active');
+      activePanel.hidden = false;
+
+      if (tab === 'genealogy') setTimeout(renderGenealogyGraph, 50);
+    }
+
+    els.tabGenealogy.addEventListener('click', function () { switchTab('genealogy'); });
+    els.tabContacts.addEventListener('click', function () { switchTab('contacts'); });
+    els.tabExport.addEventListener('click', function () { switchTab('export'); });
 
     // Sidebar toggle (responsive)
     els.sidebarToggle.addEventListener('click', function () {
       els.sidebar.classList.toggle('open');
     });
 
-    // Export
-    els.exportVcfBtn.addEventListener('click', exportVcf);
-    els.exportJsonBtn.addEventListener('click', exportJson);
+    // Sidebar export button → switch to Export tab
+    els.sidebarExportBtn.addEventListener('click', function () {
+      switchTab('export');
+      if (window.innerWidth <= 1024) els.sidebar.classList.remove('open');
+    });
+
+    // Export Studio buttons
+    els.exportVcfAllBtn.addEventListener('click', function () { exportVcf(); });
+    els.exportVcfSelectedBtn.addEventListener('click', exportVcfSelected);
+    els.exportJsonFullBtn.addEventListener('click', exportJson);
+    els.importJsonFromExportBtn.addEventListener('click', function () {
+      els.importJsonInput.click();
+    });
 
     // Import
     els.importJsonBtn.addEventListener('click', function () {
@@ -1032,29 +1204,19 @@
     });
   }
 
-  // ---- SVG Defs ----
-  function initSvgDefs() {
-    const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-    defs.innerHTML = `
-      <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
-        <polygon points="0 0, 8 3, 0 6" fill="var(--slate-600)" />
-      </marker>
-    `;
-    els.graphSvg.prepend(defs);
-  }
-
   // ---- Init ----
   function init() {
     cacheDom();
     loadState();
     seedDemoData();
-    initSvgDefs();
     bindEvents();
     fullRender();
     els.genealogyPanel.classList.add('active');
     els.genealogyPanel.hidden = false;
     els.contactsPanel.classList.remove('active');
     els.contactsPanel.hidden = true;
+    els.exportPanel.classList.remove('active');
+    els.exportPanel.hidden = true;
     setTimeout(renderGenealogyGraph, 100);
   }
 

@@ -513,6 +513,37 @@ html, body {
   gap: 6px;
 }
 
+/* ----- VIEW TOGGLE ----- */
+.view-toggle {
+  display: flex;
+  background: var(--slate-800);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+  gap: 2px;
+}
+
+.toggle-btn {
+  background: transparent;
+  border: none;
+  padding: 5px 14px;
+  border-radius: 4px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--slate-400);
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.toggle-btn:hover {
+  color: var(--slate-200);
+}
+
+.toggle-btn.active {
+  background: var(--slate-700);
+  color: var(--slate-100);
+}
+
 /* ----- GENEALOGY CANVAS ----- */
 .genealogy-canvas {
   flex: 1;
@@ -551,34 +582,132 @@ html, body {
   color: var(--slate-500);
 }
 
-/* ----- GRAPH NODES / LINKS ----- */
-.graph-node {
+/* ----- TREE CARDS (SVG) ----- */
+.tree-card {
   cursor: pointer;
   transition: opacity var(--transition-fast);
 }
 
-.graph-node:hover {
-  opacity: 0.85;
+.tree-card:hover {
+  opacity: 0.9;
 }
 
-.graph-node circle {
-  transition: fill var(--transition-fast), r var(--transition-fast);
+.tree-card rect {
+  transition: stroke var(--transition-fast), filter var(--transition-fast);
 }
 
-.graph-node text {
-  pointer-events: none;
-  font-family: var(--font-sans);
-  font-size: 11px;
-  fill: var(--slate-200);
-  text-anchor: middle;
-  dominant-baseline: central;
+.tree-card:hover rect {
+  filter: brightness(1.25);
 }
 
-.graph-link {
+.tree-link {
   stroke: var(--slate-600);
-  stroke-width: 2;
+  stroke-width: 1.5;
   fill: none;
-  marker-end: url(#arrowhead);
+  stroke-linejoin: round;
+}
+
+.tree-link.spouse-link {
+  stroke: var(--accent-warning);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 3;
+}
+
+/* ----- FAMILY LIST VIEW ----- */
+.family-list-panel {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+  position: relative;
+}
+
+.family-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.family-list-item {
+  background: var(--slate-800);
+  border: 1px solid var(--slate-700);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.family-list-item:hover {
+  background: var(--slate-750);
+  border-color: var(--slate-600);
+}
+
+.family-list-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.family-list-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+  flex-shrink: 0;
+  text-transform: uppercase;
+}
+
+.family-list-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--slate-100);
+}
+
+.family-list-relatives {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-left: 38px;
+}
+
+.family-relative-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
+}
+
+.family-relative-item:hover {
+  background: var(--slate-750);
+}
+
+.family-relative-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 600;
+  color: #fff;
+  flex-shrink: 0;
+  text-transform: uppercase;
+}
+
+.family-relative-name {
+  flex: 1;
+  font-size: 13px;
+  color: var(--slate-200);
 }
 
 /* ----- CONTACT TABLE ----- */
@@ -1088,6 +1217,68 @@ html, body {
   color: var(--accent-danger);
 }
 
+/* ----- EXPORT STUDIO ----- */
+.export-studio {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.export-card {
+  display: flex;
+  gap: 20px;
+  background: var(--slate-800);
+  border: 1px solid var(--slate-700);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.export-card:hover {
+  border-color: var(--slate-600);
+  box-shadow: var(--shadow-md);
+}
+
+.export-card-icon {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  background: var(--accent-primary-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-primary);
+}
+
+.export-card-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.export-card-content h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--slate-100);
+}
+
+.export-card-content p {
+  font-size: 13px;
+  color: var(--slate-400);
+  line-height: 1.5;
+}
+
+.export-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
 /* ----- RESPONSIVE ----- */
 @media (max-width: 1024px) {
   .sidebar {
@@ -1140,6 +1331,20 @@ html, body {
   .contact-table th:nth-child(4),
   .contact-table td:nth-child(4) {
     display: none;
+  }
+
+  .export-studio {
+    padding: 16px;
+  }
+
+  .export-card {
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .export-card-actions {
+    flex-direction: column;
   }
 }
 

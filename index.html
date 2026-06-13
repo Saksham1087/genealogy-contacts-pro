@@ -64,8 +64,7 @@
           <span aria-hidden="true">+</span> Add Contact
         </button>
         <div class="sidebar-actions-secondary">
-          <button class="btn btn-ghost btn-sm" id="exportVcfBtn" type="button">Export vCard</button>
-          <button class="btn btn-ghost btn-sm" id="exportJsonBtn" type="button">Backup JSON</button>
+          <button class="btn btn-ghost btn-sm" id="sidebarExportBtn" type="button">Backup &amp; Export</button>
         </div>
       </div>
     </aside>
@@ -73,23 +72,30 @@
     <!-- MAIN VIEWPORT PANEL -->
     <main id="viewport" class="panel viewport" role="region" aria-label="Main workspace">
       <div class="viewport-tabs">
-        <button class="tab-btn active" data-tab="genealogy" id="tabGenealogy" type="button" role="tab" aria-selected="true" aria-controls="genealogyPanel">Genealogy Graph</button>
+        <button class="tab-btn active" data-tab="genealogy" id="tabGenealogy" type="button" role="tab" aria-selected="true" aria-controls="genealogyPanel">Genealogy</button>
         <button class="tab-btn" data-tab="contacts" id="tabContacts" type="button" role="tab" aria-selected="false" aria-controls="contactsPanel">Contact Explorer</button>
+        <button class="tab-btn" data-tab="export" id="tabExport" type="button" role="tab" aria-selected="false" aria-controls="exportPanel">Backup &amp; Export</button>
       </div>
 
       <div class="viewport-content">
-        <!-- Tab 1: Interactive Genealogy Graph Grid -->
-        <section id="genealogyPanel" class="tab-panel active" role="tabpanel" aria-label="Genealogy Graph">
+        <!-- Tab 1: Interactive Genealogy Tree -->
+        <section id="genealogyPanel" class="tab-panel active" role="tabpanel" aria-label="Genealogy">
           <div class="toolbar">
-            <span class="toolbar-title">Family Tree</span>
+            <span class="toolbar-title" id="genealogyTitle">Family Tree</span>
             <div class="toolbar-actions">
-              <button class="btn btn-ghost btn-sm" id="zoomInBtn" type="button">Zoom +</button>
-              <button class="btn btn-ghost btn-sm" id="zoomOutBtn" type="button">Zoom -</button>
-              <button class="btn btn-ghost btn-sm" id="resetViewBtn" type="button">Reset</button>
+              <div class="view-toggle" role="group" aria-label="Genealogy view mode">
+                <button class="toggle-btn active" data-view="tree" id="viewTreeBtn" type="button">Tree View</button>
+                <button class="toggle-btn" data-view="list" id="viewListBtn" type="button">List View</button>
+              </div>
             </div>
           </div>
           <div class="genealogy-canvas" id="genealogyCanvas">
             <svg class="graph-svg" id="graphSvg" width="100%" height="100%">
+              <defs>
+                <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                  <polygon points="0 0, 8 3, 0 6" fill="var(--slate-600)" />
+                </marker>
+              </defs>
               <g class="graph-links" id="graphLinks"></g>
               <g class="graph-nodes" id="graphNodes"></g>
             </svg>
@@ -97,6 +103,13 @@
               <p>No family data yet.</p>
               <p class="text-muted">Add contacts and link relationships to build your tree.</p>
             </div>
+          </div>
+          <div class="family-list-panel" id="familyListPanel" hidden>
+            <div class="canvas-empty-state" id="familyListEmpty">
+              <p>No relatives found for this contact.</p>
+              <p class="text-muted">Link relationships from the detail panel to see them here.</p>
+            </div>
+            <ul class="family-list" id="familyList"></ul>
           </div>
         </section>
 
@@ -125,6 +138,53 @@
             <div class="canvas-empty-state" id="contactsEmpty">
               <p>No contacts found.</p>
               <p class="text-muted">Use the Add Contact button to get started.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Tab 3: Backup & Export Studio -->
+        <section id="exportPanel" class="tab-panel" role="tabpanel" aria-label="Backup and Export" hidden>
+          <div class="toolbar">
+            <span class="toolbar-title">Backup &amp; Export Studio</span>
+            <div class="toolbar-actions"></div>
+          </div>
+          <div class="export-studio">
+            <div class="export-card">
+              <div class="export-card-icon" aria-hidden="true">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              </div>
+              <div class="export-card-content">
+                <h3>Export vCard (.vcf)</h3>
+                <p>Download all visible contacts as a standard vCard 3.0 file. Compatible with Outlook, Apple Contacts, and Google Contacts.</p>
+                <div class="export-card-actions">
+                  <button class="btn btn-primary" id="exportVcfAllBtn" type="button">Export All Visible</button>
+                  <button class="btn btn-ghost btn-sm" id="exportVcfSelectedBtn" type="button">Export Selected</button>
+                </div>
+              </div>
+            </div>
+            <div class="export-card">
+              <div class="export-card-icon" aria-hidden="true">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              </div>
+              <div class="export-card-content">
+                <h3>System Backup (.json)</h3>
+                <p>Export your entire genealogy database — contacts, relationships, and metadata — as a JSON file for safe storage or migration.</p>
+                <div class="export-card-actions">
+                  <button class="btn btn-primary" id="exportJsonFullBtn" type="button">Download Full Backup</button>
+                </div>
+              </div>
+            </div>
+            <div class="export-card">
+              <div class="export-card-icon" aria-hidden="true">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9"/><polyline points="22 3 12 13 9 10"/></svg>
+              </div>
+              <div class="export-card-content">
+                <h3>Restore from Backup</h3>
+                <p>Import a previously exported .json backup to restore your entire contact database and relationship network.</p>
+                <div class="export-card-actions">
+                  <button class="btn btn-primary" id="importJsonFromExportBtn" type="button">Choose Backup File</button>
+                </div>
+              </div>
             </div>
           </div>
         </section>
