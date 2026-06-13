@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Genealogy + Contact Manager</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app" role="application" aria-label="Genealogy and Contact Management Dashboard">
+    <!-- LEFT PANEL: Navigation & CRM Filters -->
+    <aside id="sidebar" class="panel sidebar" role="region" aria-label="Navigation and Filters">
+      <div class="sidebar-header">
+        <h1 class="logo">
+          <span class="logo-icon" aria-hidden="true">&#9670;</span>
+          <span class="logo-text">Progeny</span>
+        </h1>
+        <button class="btn btn-ghost btn-icon sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar" type="button">
+          <span class="icon-hamburger" aria-hidden="true"></span>
+        </button>
+      </div>
+
+      <div class="search-container">
+        <div class="search-wrapper">
+          <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input
+            type="text"
+            id="searchInput"
+            class="search-input"
+            placeholder="Search contacts, notes..."
+            aria-label="Search contacts"
+            autocomplete="off"
+          />
+          <button class="btn btn-ghost btn-icon search-clear" id="searchClear" aria-label="Clear search" type="button">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+      </div>
+
+      <nav class="quick-groups" aria-label="Quick access groups">
+        <h2 class="section-label">Quick Groups</h2>
+        <ul class="group-list" id="quickGroupList">
+          <li><button class="btn btn-group active" data-filter="all" type="button">All Contacts</button></li>
+          <li><button class="btn btn-group" data-filter="immediate-family" type="button">Immediate Family</button></li>
+          <li><button class="btn btn-group" data-filter="paternal-line" type="button">Paternal Line</button></li>
+          <li><button class="btn btn-group" data-filter="maternal-line" type="button">Maternal Line</button></li>
+          <li><button class="btn btn-group" data-filter="work" type="button">Work Contacts</button></li>
+        </ul>
+      </nav>
+
+      <div class="contact-list-container">
+        <h2 class="section-label">
+          Records
+          <span class="badge" id="recordCount" aria-live="polite">0</span>
+        </h2>
+        <ul class="contact-list" id="contactList" role="listbox" aria-label="Contact records"></ul>
+      </div>
+
+      <div class="sidebar-actions">
+        <button class="btn btn-primary btn-full" id="addContactBtn" type="button">
+          <span aria-hidden="true">+</span> Add Contact
+        </button>
+        <div class="sidebar-actions-secondary">
+          <button class="btn btn-ghost btn-sm" id="exportVcfBtn" type="button">Export vCard</button>
+          <button class="btn btn-ghost btn-sm" id="exportJsonBtn" type="button">Backup JSON</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN VIEWPORT PANEL -->
+    <main id="viewport" class="panel viewport" role="region" aria-label="Main workspace">
+      <div class="viewport-tabs">
+        <button class="tab-btn active" data-tab="genealogy" id="tabGenealogy" type="button" role="tab" aria-selected="true" aria-controls="genealogyPanel">Genealogy Graph</button>
+        <button class="tab-btn" data-tab="contacts" id="tabContacts" type="button" role="tab" aria-selected="false" aria-controls="contactsPanel">Contact Explorer</button>
+      </div>
+
+      <div class="viewport-content">
+        <!-- Tab 1: Interactive Genealogy Graph Grid -->
+        <section id="genealogyPanel" class="tab-panel active" role="tabpanel" aria-label="Genealogy Graph">
+          <div class="toolbar">
+            <span class="toolbar-title">Family Tree</span>
+            <div class="toolbar-actions">
+              <button class="btn btn-ghost btn-sm" id="zoomInBtn" type="button">Zoom +</button>
+              <button class="btn btn-ghost btn-sm" id="zoomOutBtn" type="button">Zoom -</button>
+              <button class="btn btn-ghost btn-sm" id="resetViewBtn" type="button">Reset</button>
+            </div>
+          </div>
+          <div class="genealogy-canvas" id="genealogyCanvas">
+            <svg class="graph-svg" id="graphSvg" width="100%" height="100%">
+              <g class="graph-links" id="graphLinks"></g>
+              <g class="graph-nodes" id="graphNodes"></g>
+            </svg>
+            <div class="canvas-empty-state" id="genealogyEmpty">
+              <p>No family data yet.</p>
+              <p class="text-muted">Add contacts and link relationships to build your tree.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Tab 2: Tabular Contact Explorer Grid -->
+        <section id="contactsPanel" class="tab-panel" role="tabpanel" aria-label="Contact Explorer" hidden>
+          <div class="toolbar">
+            <span class="toolbar-title">All Contacts</span>
+            <div class="toolbar-actions">
+              <button class="btn btn-ghost btn-sm" id="importJsonBtn" type="button">Import JSON</button>
+              <input type="file" id="importJsonInput" accept=".json" style="display:none" />
+            </div>
+          </div>
+          <div class="table-wrapper">
+            <table class="contact-table" id="contactTable" aria-label="Contacts">
+              <thead>
+                <tr>
+                  <th scope="col">Name</th>
+                  <th scope="col">Phone</th>
+                  <th scope="col">Email</th>
+                  <th scope="col">Relationship</th>
+                  <th scope="col">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="contactTableBody"></tbody>
+            </table>
+            <div class="canvas-empty-state" id="contactsEmpty">
+              <p>No contacts found.</p>
+              <p class="text-muted">Use the Add Contact button to get started.</p>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <!-- RIGHT CANVAS PANEL: Detail Slide-Over -->
+    <aside id="detailPanel" class="panel detail-panel" role="region" aria-label="Contact detail" aria-hidden="true">
+      <div class="detail-header">
+        <h2 class="detail-title" id="detailTitle">Contact Details</h2>
+        <button class="btn btn-ghost btn-icon" id="detailCloseBtn" aria-label="Close detail panel" type="button">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="detail-body" id="detailBody">
+        <div class="detail-avatar" id="detailAvatar">
+          <div class="avatar-placeholder" id="avatarPlaceholder">?</div>
+        </div>
+        <div class="detail-fields" id="detailFields"></div>
+        <div class="detail-section">
+          <h3 class="detail-section-title">Relationships</h3>
+          <ul class="detail-relations" id="detailRelations" aria-label="Relationships"></ul>
+        </div>
+        <div class="detail-actions">
+          <button class="btn btn-primary btn-full" id="detailEditBtn" type="button">Edit Contact</button>
+          <button class="btn btn-danger btn-full" id="detailDeleteBtn" type="button">Delete Contact</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Modal Overlay -->
+    <div id="modalOverlay" class="modal-overlay" role="dialog" aria-modal="true" aria-hidden="true">
+      <div class="modal-content" id="modalContent">
+        <div class="modal-header">
+          <h2 class="modal-title" id="modalTitle">Contact</h2>
+          <button class="btn btn-ghost btn-icon modal-close" id="modalCloseBtn" type="button" aria-label="Close modal">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <form id="contactForm" class="modal-form" novalidate>
+          <input type="hidden" id="formContactId" />
+          <div class="form-row">
+            <div class="form-group">
+              <label for="formFirstName">First Name</label>
+              <input type="text" id="formFirstName" class="form-input" required placeholder="e.g. John" />
+            </div>
+            <div class="form-group">
+              <label for="formLastName">Last Name</label>
+              <input type="text" id="formLastName" class="form-input" required placeholder="e.g. Doe" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="formPhone">Phone</label>
+            <input type="tel" id="formPhone" class="form-input" placeholder="e.g. +1-555-0100" />
+          </div>
+          <div class="form-group">
+            <label for="formEmail">Email</label>
+            <input type="email" id="formEmail" class="form-input" placeholder="e.g. john@example.com" />
+          </div>
+          <div class="form-group">
+            <label for="formBirthDate">Birth Date</label>
+            <input type="date" id="formBirthDate" class="form-input" />
+          </div>
+          <div class="form-group">
+            <label for="formDeathDate">Death Date</label>
+            <input type="date" id="formDeathDate" class="form-input" />
+          </div>
+          <div class="form-group">
+            <label for="formGender">Gender</label>
+            <select id="formGender" class="form-input">
+              <option value="">— Select —</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="formGroup">Group</label>
+            <select id="formGroup" class="form-input">
+              <option value="">— None —</option>
+              <option value="immediate-family">Immediate Family</option>
+              <option value="paternal-line">Paternal Line</option>
+              <option value="maternal-line">Maternal Line</option>
+              <option value="work">Work Contacts</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="formNotes">Notes</label>
+            <textarea id="formNotes" class="form-input form-textarea" rows="3" placeholder="Biographical notes..."></textarea>
+          </div>
+          <div class="form-group">
+            <label>Relationships</label>
+            <div id="formRelations" class="form-relations">
+              <div class="relation-row">
+                <select class="form-input relation-type" aria-label="Relationship type">
+                  <option value="parent">Parent</option>
+                  <option value="child">Child</option>
+                  <option value="spouse">Spouse</option>
+                </select>
+                <select class="form-input relation-target" aria-label="Related contact">
+                  <option value="">— Select contact —</option>
+                </select>
+                <button class="btn btn-ghost btn-icon relation-remove" type="button" aria-label="Remove relation" disabled>&times;</button>
+              </div>
+            </div>
+            <button class="btn btn-ghost btn-sm" id="addRelationRowBtn" type="button">+ Add Relation</button>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary" id="formSaveBtn">Save</button>
+            <button type="button" class="btn btn-ghost" id="formCancelBtn">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
