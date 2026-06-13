@@ -74,10 +74,19 @@
     els.formGender = $('#formGender');
     els.formGroup = $('#formGroup');
     els.formNotes = $('#formNotes');
+    els.formAddress = $('#formAddress');
+    els.formBirthPlace = $('#formBirthPlace');
+    els.formTags = $('#formTags');
     els.formRelations = $('#formRelations');
     els.addRelationRowBtn = $('#addRelationRowBtn');
     els.formSaveBtn = $('#formSaveBtn');
     els.formCancelBtn = $('#formCancelBtn');
+
+    els.linkRelativeSearch = $('#linkRelativeSearch');
+    els.linkRelativeResults = $('#linkRelativeResults');
+    els.linkRelativeType = $('#linkRelativeType');
+    els.linkRelativeBtn = $('#linkRelativeBtn');
+    els.linkRelativeFeedback = $('#linkRelativeFeedback');
   }
 
   // ---- LocalStorage persistence ----
@@ -110,12 +119,12 @@
     if (contacts.length > 0) return;
 
     contacts = [
-      { id: 1, firstName: 'John', lastName: 'Doe', phone: '+1-555-0101', email: 'john.doe@example.com', birthDate: '1945-03-12', deathDate: '', gender: 'male', group: '', notes: 'Family patriarch.' },
-      { id: 2, firstName: 'Jane', lastName: 'Doe', phone: '+1-555-0102', email: 'jane.doe@example.com', birthDate: '1948-07-25', deathDate: '', gender: 'female', group: '', notes: '' },
-      { id: 3, firstName: 'Michael', lastName: 'Doe', phone: '+1-555-0103', email: 'michael.doe@example.com', birthDate: '1972-11-03', deathDate: '', gender: 'male', group: 'immediate-family', notes: '' },
-      { id: 4, firstName: 'Sarah', lastName: 'Doe', phone: '+1-555-0104', email: 'sarah.doe@example.com', birthDate: '1975-06-18', deathDate: '', gender: 'female', group: 'immediate-family', notes: '' },
-      { id: 5, firstName: 'Emily', lastName: 'Doe', phone: '+1-555-0105', email: 'emily.doe@example.com', birthDate: '2001-09-30', deathDate: '', gender: 'female', group: 'immediate-family', notes: '' },
-      { id: 6, firstName: 'Robert', lastName: 'Smith', phone: '+1-555-0201', email: 'robert.smith@example.com', birthDate: '1980-01-15', deathDate: '', gender: 'male', group: 'work', notes: 'Colleague at Acme Corp.' },
+      { id: 1, firstName: 'John', lastName: 'Doe', phone: '+1-555-0101', email: 'john.doe@example.com', address: '742 Evergreen Terrace, Springfield', birthDate: '1945-03-12', birthPlace: 'Springfield, IL', deathDate: '', gender: 'male', group: '', tags: ['paternal', 'ancestor'], notes: 'Family patriarch.' },
+      { id: 2, firstName: 'Jane', lastName: 'Doe', phone: '+1-555-0102', email: 'jane.doe@example.com', address: '742 Evergreen Terrace, Springfield', birthDate: '1948-07-25', birthPlace: 'Shelbyville, IL', deathDate: '', gender: 'female', group: '', tags: ['maternal', 'ancestor'], notes: '' },
+      { id: 3, firstName: 'Michael', lastName: 'Doe', phone: '+1-555-0103', email: 'michael.doe@example.com', address: '456 Oak Ave, Springfield', birthDate: '1972-11-03', birthPlace: 'Springfield, IL', deathDate: '', gender: 'male', group: 'immediate-family', tags: ['paternal'], notes: '' },
+      { id: 4, firstName: 'Sarah', lastName: 'Doe', phone: '+1-555-0104', email: 'sarah.doe@example.com', address: '456 Oak Ave, Springfield', birthDate: '1975-06-18', birthPlace: 'Portland, OR', deathDate: '', gender: 'female', group: 'immediate-family', tags: ['maternal'], notes: '' },
+      { id: 5, firstName: 'Emily', lastName: 'Doe', phone: '+1-555-0105', email: 'emily.doe@example.com', address: '456 Oak Ave, Springfield', birthDate: '2001-09-30', birthPlace: 'Springfield, IL', deathDate: '', gender: 'female', group: 'immediate-family', tags: ['custom'], notes: '' },
+      { id: 6, firstName: 'Robert', lastName: 'Smith', phone: '+1-555-0201', email: 'robert.smith@example.com', address: '890 Pine St, Metropolis', birthDate: '1980-01-15', birthPlace: 'Metropolis, NY', deathDate: '', gender: 'male', group: 'work', tags: ['colleague'], notes: 'Colleague at Acme Corp.' },
     ];
     relationships = [
       { id: 1, fromId: 1, toId: 2, type: 'spouse' },
@@ -210,6 +219,25 @@
     return colors[(id || 0) % colors.length];
   }
 
+  function tagColor(tag) {
+    const map = {
+      paternal: '#6c8cff',
+      maternal: '#f472b6',
+      custom: '#a78bfa',
+      friend: '#34d399',
+      colleague: '#fbbf24',
+      ancestor: '#f87171',
+    };
+    return map[tag] || '#5c687f';
+  }
+
+  function renderTagBadges(tags) {
+    if (!Array.isArray(tags) || tags.length === 0) return '';
+    return tags.map(t =>
+      `<span class="tag-badge" style="background:${tagColor(t)}">${t.charAt(0).toUpperCase() + t.slice(1)}</span>`
+    ).join('');
+  }
+
   // ---- Search indexing ----
   function searchIndex(query) {
     const q = query.trim().toLowerCase();
@@ -221,8 +249,11 @@
         c.lastName,
         c.phone,
         c.email,
+        c.address,
+        c.birthPlace,
         c.notes,
         getGroupLabel(c.group),
+        ...(Array.isArray(c.tags) ? c.tags : []),
       ].filter(Boolean).join(' ').toLowerCase();
       return haystack.includes(q);
     });
@@ -251,12 +282,14 @@
 
     els.contactList.innerHTML = list.map(c => {
       const isSelected = c.id === selectedContactId;
+      const tagsHtml = renderTagBadges(c.tags);
       return `
         <li class="contact-item${isSelected ? ' selected' : ''}" data-id="${c.id}" role="option" aria-selected="${isSelected}" tabindex="0">
           <span class="contact-item-avatar" style="background:${avatarColor(c.id)}">${initials(c)}</span>
           <div class="contact-item-info">
             <div class="contact-item-name">${fullName(c)}</div>
             <div class="contact-item-meta">${c.phone || c.email || ''} ${c.birthDate ? ageFromBirth(c.birthDate) : ''}</div>
+            ${tagsHtml ? `<div class="contact-item-tags">${tagsHtml}</div>` : ''}
           </div>
           <div class="contact-item-actions">
             <button class="btn btn-icon detail-action-btn" data-id="${c.id}" title="View details" type="button">&#9654;</button>
@@ -449,14 +482,19 @@
     els.avatarPlaceholder.textContent = initials(c);
     els.avatarPlaceholder.style.background = `linear-gradient(135deg, ${avatarColor(c.id)}, ${avatarColor(c.id + 3)})`;
 
+    const tagsHtml = renderTagBadges(c.tags);
+
     els.detailFields.innerHTML = `
       <div class="detail-field"><span class="detail-field-label">Full Name</span><span class="detail-field-value">${fullName(c)}</span></div>
       ${c.phone ? `<div class="detail-field"><span class="detail-field-label">Phone</span><span class="detail-field-value">${c.phone}</span></div>` : ''}
       ${c.email ? `<div class="detail-field"><span class="detail-field-label">Email</span><span class="detail-field-value">${c.email}</span></div>` : ''}
+      ${c.address ? `<div class="detail-field"><span class="detail-field-label">Address</span><span class="detail-field-value">${c.address}</span></div>` : ''}
       ${c.birthDate ? `<div class="detail-field"><span class="detail-field-label">Birth Date</span><span class="detail-field-value">${c.birthDate} ${ageFromBirth(c.birthDate)}</span></div>` : ''}
+      ${c.birthPlace ? `<div class="detail-field"><span class="detail-field-label">Birth Place</span><span class="detail-field-value">${c.birthPlace}</span></div>` : ''}
       ${c.deathDate ? `<div class="detail-field"><span class="detail-field-label">Death Date</span><span class="detail-field-value">${c.deathDate}</span></div>` : ''}
       ${c.gender ? `<div class="detail-field"><span class="detail-field-label">Gender</span><span class="detail-field-value">${c.gender.charAt(0).toUpperCase() + c.gender.slice(1)}</span></div>` : ''}
       ${c.group ? `<div class="detail-field"><span class="detail-field-label">Group</span><span class="detail-field-value">${getGroupLabel(c.group)}</span></div>` : ''}
+      ${tagsHtml ? `<div class="detail-field"><span class="detail-field-label">Tags</span><span class="detail-field-value">${tagsHtml}</span></div>` : ''}
       ${c.notes ? `<div class="detail-field"><span class="detail-field-label">Notes</span><span class="detail-field-value">${c.notes}</span></div>` : ''}
     `;
 
@@ -505,11 +543,18 @@
     els.formLastName.value = c ? c.lastName : '';
     els.formPhone.value = c ? (c.phone || '') : '';
     els.formEmail.value = c ? (c.email || '') : '';
+    els.formAddress.value = c ? (c.address || '') : '';
     els.formBirthDate.value = c ? (c.birthDate || '') : '';
+    els.formBirthPlace.value = c ? (c.birthPlace || '') : '';
     els.formDeathDate.value = c ? (c.deathDate || '') : '';
     els.formGender.value = c ? (c.gender || '') : '';
     els.formGroup.value = c ? (c.group || '') : '';
     els.formNotes.value = c ? (c.notes || '') : '';
+
+    const tags = Array.isArray(c && c.tags) ? c.tags : [];
+    els.formTags.querySelectorAll('.tag-input').forEach(inp => {
+      inp.checked = tags.includes(inp.value);
+    });
 
     renderRelationRows(contactId);
     els.modalOverlay.classList.add('open');
@@ -571,15 +616,22 @@
     e.preventDefault();
 
     const id = els.formContactId.value ? parseInt(els.formContactId.value, 10) : null;
+
+    const tagInputs = els.formTags.querySelectorAll('.tag-input:checked');
+    const tags = Array.from(tagInputs).map(inp => inp.value);
+
     const data = {
       firstName: els.formFirstName.value.trim(),
       lastName: els.formLastName.value.trim(),
       phone: els.formPhone.value.trim(),
       email: els.formEmail.value.trim(),
+      address: els.formAddress.value.trim(),
       birthDate: els.formBirthDate.value,
+      birthPlace: els.formBirthPlace.value.trim(),
       deathDate: els.formDeathDate.value,
       gender: els.formGender.value,
       group: els.formGroup.value,
+      tags: tags,
       notes: els.formNotes.value.trim(),
     };
 
@@ -607,12 +659,7 @@
       contacts.push(data);
     }
     newRels.forEach(rel => {
-      const relId = generateId();
-      if (rel.type === 'parent' || rel.type === 'spouse') {
-        relationships.push({ id: relId, fromId: actualId, toId: rel.targetId, type: rel.type });
-      } else {
-        relationships.push({ id: relId, fromId: rel.targetId, toId: actualId, type: 'parent' });
-      }
+      bindRelationship(actualId, rel.targetId, rel.type);
     });
 
     saveState();
@@ -628,6 +675,36 @@
     saveState();
     closeDetail();
     fullRender();
+  }
+
+  // ---- Relationship Binding ----
+  function bindRelationship(personId, relativeId, type) {
+    if (personId === relativeId) {
+      console.warn('Cannot relate a contact to themselves');
+      return false;
+    }
+    const existing = relationships.find(r =>
+      (r.fromId === personId && r.toId === relativeId) ||
+      (r.fromId === relativeId && r.toId === personId)
+    );
+    if (existing) return false;
+
+    const inverse = getInverseType(type);
+    const relId = generateId();
+
+    if (type === 'parent') {
+      relationships.push({ id: relId, fromId: personId, toId: relativeId, type: 'parent' });
+      relationships.push({ id: generateId(), fromId: relativeId, toId: personId, type: 'child' });
+    } else if (type === 'child') {
+      relationships.push({ id: relId, fromId: personId, toId: relativeId, type: 'child' });
+      relationships.push({ id: generateId(), fromId: relativeId, toId: personId, type: 'parent' });
+    } else if (type === 'spouse') {
+      relationships.push({ id: relId, fromId: personId, toId: relativeId, type: 'spouse' });
+      relationships.push({ id: generateId(), fromId: relativeId, toId: personId, type: 'spouse' });
+    }
+
+    saveState();
+    return true;
   }
 
   // ---- Export: vCard ----
@@ -646,6 +723,7 @@
       lines.push(`N:${c.lastName};${c.firstName};;;`);
       if (c.phone) lines.push(`TEL;TYPE=CELL:${c.phone}`);
       if (c.email) lines.push(`EMAIL;TYPE=INTERNET:${c.email}`);
+      if (c.address) lines.push(`ADR;TYPE=HOME:;;${c.address};;;`);
       if (c.birthDate) lines.push(`BDAY:${c.birthDate}`);
       if (c.notes) lines.push(`NOTE:${c.notes.replace(/\n/g, '\\n')}`);
       lines.push(`UID:${c.id}@progeny`);
@@ -795,6 +873,70 @@
     // Detail delete
     els.detailDeleteBtn.addEventListener('click', function () {
       if (detailContactId) deleteContact(detailContactId);
+    });
+
+    // ---- Link Relative (detail panel) ----
+    let linkSelectedId = null;
+
+    els.linkRelativeSearch.addEventListener('input', function () {
+      const q = this.value.trim().toLowerCase();
+      linkSelectedId = null;
+      if (!q || !detailContactId) {
+        els.linkRelativeResults.hidden = true;
+        return;
+      }
+      const candidates = contacts.filter(c =>
+        c.id !== detailContactId &&
+        (c.firstName.toLowerCase().includes(q) ||
+         c.lastName.toLowerCase().includes(q) ||
+         fullName(c).toLowerCase().includes(q))
+      );
+      if (candidates.length === 0) {
+        els.linkRelativeResults.hidden = true;
+        return;
+      }
+      els.linkRelativeResults.hidden = false;
+      els.linkRelativeResults.innerHTML = candidates.map(c =>
+        `<li data-id="${c.id}">
+          <span class="result-avatar" style="background:${avatarColor(c.id)}">${initials(c)}</span>
+          <span>${fullName(c)}</span>
+        </li>`
+      ).join('');
+    });
+
+    els.linkRelativeResults.addEventListener('click', function (e) {
+      const li = e.target.closest('li');
+      if (!li) return;
+      linkSelectedId = parseInt(li.dataset.id, 10);
+      const c = getContact(linkSelectedId);
+      els.linkRelativeSearch.value = fullName(c);
+      els.linkRelativeResults.hidden = true;
+      els.linkRelativeResults.querySelectorAll('li').forEach(l => l.classList.remove('selected'));
+      li.classList.add('selected');
+    });
+
+    els.linkRelativeResults.addEventListener('mouseleave', function () {
+      this.hidden = true;
+    });
+
+    els.linkRelativeBtn.addEventListener('click', function () {
+      if (!detailContactId || !linkSelectedId) {
+        els.linkRelativeFeedback.textContent = 'Search and select a contact first.';
+        els.linkRelativeFeedback.className = 'link-relative-feedback error';
+        return;
+      }
+      const type = els.linkRelativeType.value;
+      const success = bindRelationship(detailContactId, linkSelectedId, type);
+      if (success) {
+        els.linkRelativeFeedback.textContent = `Linked as ${type.charAt(0).toUpperCase() + type.slice(1)}.`;
+        els.linkRelativeFeedback.className = 'link-relative-feedback success';
+        linkSelectedId = null;
+        els.linkRelativeSearch.value = '';
+        openDetail(detailContactId);
+      } else {
+        els.linkRelativeFeedback.textContent = 'Relationship already exists or invalid.';
+        els.linkRelativeFeedback.className = 'link-relative-feedback error';
+      }
     });
 
     // Add contact

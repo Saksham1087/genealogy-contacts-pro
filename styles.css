@@ -917,6 +917,177 @@ html, body {
   flex-shrink: 0;
 }
 
+/* ----- TAG CHECKBOXES ----- */
+.tag-checkboxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+.tag-chip .tag-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.tag-chip .tag-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--slate-400);
+  background: var(--slate-800);
+  border: 1px solid var(--slate-700);
+  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.tag-chip .tag-input:checked + .tag-label {
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 0 10px rgba(108, 140, 255, 0.2);
+}
+
+.tag-chip .tag-input:checked + .tag-label[data-tag] {
+  /* per-tag overrides set via js */
+}
+
+.tag-chip .tag-label::before {
+  content: '+';
+  font-weight: 700;
+  font-size: 14px;
+  transition: transform var(--transition-fast);
+}
+
+.tag-chip .tag-input:checked + .tag-label::before {
+  content: '\2713';
+  transform: scale(1.1);
+}
+
+/* Tag badge colors when checked — assigned dynamically via data attributes */
+.tag-chip[data-color="paternal"] .tag-input:checked + .tag-label { background: #6c8cff; }
+.tag-chip[data-color="maternal"] .tag-input:checked + .tag-label { background: #f472b6; }
+.tag-chip[data-color="custom"] .tag-input:checked + .tag-label { background: #a78bfa; }
+.tag-chip[data-color="friend"] .tag-input:checked + .tag-label { background: #34d399; }
+.tag-chip[data-color="colleague"] .tag-input:checked + .tag-label { background: #fbbf24; color: #1a1f2b; }
+.tag-chip[data-color="ancestor"] .tag-input:checked + .tag-label { background: #f87171; }
+
+/* ----- TAG BADGES (detail / list) ----- */
+.tag-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #fff;
+  margin-right: 4px;
+  margin-bottom: 4px;
+}
+
+.contact-item-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+/* ----- LINK RELATIVE (detail panel) ----- */
+.link-relative-section {
+  margin-bottom: 20px;
+}
+
+.link-relative-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.link-relative-search {
+  position: relative;
+}
+
+.link-relative-results {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 15;
+  list-style: none;
+  background: var(--slate-800);
+  border: 1px solid var(--slate-700);
+  border-radius: var(--radius-sm);
+  max-height: 160px;
+  overflow-y: auto;
+  margin-top: 2px;
+  box-shadow: var(--shadow-md);
+}
+
+.link-relative-results li {
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--slate-200);
+  transition: background var(--transition-fast);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.link-relative-results li:hover,
+.link-relative-results li.selected {
+  background: var(--accent-primary-dim);
+  color: var(--accent-primary);
+}
+
+.link-relative-results li .result-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 600;
+  color: #fff;
+  flex-shrink: 0;
+  text-transform: uppercase;
+}
+
+.link-relative-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.link-relative-controls .form-input {
+  flex: 1;
+}
+
+.link-relative-feedback {
+  font-size: 12px;
+  min-height: 18px;
+  color: var(--slate-400);
+}
+
+.link-relative-feedback.success {
+  color: var(--accent-success);
+}
+
+.link-relative-feedback.error {
+  color: var(--accent-danger);
+}
+
 /* ----- RESPONSIVE ----- */
 @media (max-width: 1024px) {
   .sidebar {

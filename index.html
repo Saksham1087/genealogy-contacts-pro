@@ -148,6 +148,24 @@
           <h3 class="detail-section-title">Relationships</h3>
           <ul class="detail-relations" id="detailRelations" aria-label="Relationships"></ul>
         </div>
+        <div class="detail-section link-relative-section">
+          <h3 class="detail-section-title">Link Relative</h3>
+          <div class="link-relative-form">
+            <div class="link-relative-search">
+              <input type="text" id="linkRelativeSearch" class="form-input" placeholder="Search contacts..." autocomplete="off" />
+              <ul class="link-relative-results" id="linkRelativeResults" hidden></ul>
+            </div>
+            <div class="link-relative-controls">
+              <select id="linkRelativeType" class="form-input" aria-label="Relationship type">
+                <option value="parent">Parent</option>
+                <option value="child">Child</option>
+                <option value="spouse">Spouse</option>
+              </select>
+              <button class="btn btn-primary btn-sm" id="linkRelativeBtn" type="button">Link</button>
+            </div>
+            <p class="link-relative-feedback" id="linkRelativeFeedback" aria-live="polite"></p>
+          </div>
+        </div>
         <div class="detail-actions">
           <button class="btn btn-primary btn-full" id="detailEditBtn" type="button">Edit Contact</button>
           <button class="btn btn-danger btn-full" id="detailDeleteBtn" type="button">Delete Contact</button>
@@ -185,8 +203,18 @@
             <input type="email" id="formEmail" class="form-input" placeholder="e.g. john@example.com" />
           </div>
           <div class="form-group">
-            <label for="formBirthDate">Birth Date</label>
-            <input type="date" id="formBirthDate" class="form-input" />
+            <label for="formAddress">Address</label>
+            <input type="text" id="formAddress" class="form-input" placeholder="e.g. 123 Main St, Springfield" />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="formBirthDate">Birth Date</label>
+              <input type="date" id="formBirthDate" class="form-input" />
+            </div>
+            <div class="form-group">
+              <label for="formBirthPlace">Birth Place</label>
+              <input type="text" id="formBirthPlace" class="form-input" placeholder="e.g. Boston, MA" />
+            </div>
           </div>
           <div class="form-group">
             <label for="formDeathDate">Death Date</label>
@@ -214,6 +242,35 @@
           <div class="form-group">
             <label for="formNotes">Notes</label>
             <textarea id="formNotes" class="form-input form-textarea" rows="3" placeholder="Biographical notes..."></textarea>
+          </div>
+          <div class="form-group">
+            <label>Tags / Labels</label>
+            <div class="tag-checkboxes" id="formTags">
+              <label class="tag-chip" data-color="paternal">
+                <input type="checkbox" value="paternal" class="tag-input" />
+                <span class="tag-label">Paternal</span>
+              </label>
+              <label class="tag-chip" data-color="maternal">
+                <input type="checkbox" value="maternal" class="tag-input" />
+                <span class="tag-label">Maternal</span>
+              </label>
+              <label class="tag-chip" data-color="custom">
+                <input type="checkbox" value="custom" class="tag-input" />
+                <span class="tag-label">Custom</span>
+              </label>
+              <label class="tag-chip" data-color="friend">
+                <input type="checkbox" value="friend" class="tag-input" />
+                <span class="tag-label">Friend</span>
+              </label>
+              <label class="tag-chip" data-color="colleague">
+                <input type="checkbox" value="colleague" class="tag-input" />
+                <span class="tag-label">Colleague</span>
+              </label>
+              <label class="tag-chip" data-color="ancestor">
+                <input type="checkbox" value="ancestor" class="tag-input" />
+                <span class="tag-label">Ancestor</span>
+              </label>
+            </div>
           </div>
           <div class="form-group">
             <label>Relationships</label>
