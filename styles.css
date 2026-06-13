@@ -647,6 +647,46 @@ html, body {
   border-color: var(--slate-600);
 }
 
+/* ----- CANVAS HUD (ZOOM/PAN) ----- */
+.canvas-hud {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  z-index: 5;
+  display: flex;
+  gap: 4px;
+  background: rgba(26, 31, 43, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(36, 43, 61, 0.4);
+  border-radius: var(--radius-md);
+  padding: 5px;
+  box-shadow: var(--shadow-md);
+}
+
+.hud-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--slate-400);
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
+}
+
+.hud-btn:hover {
+  background: var(--slate-700);
+  color: var(--slate-100);
+}
+
+.hud-btn:active {
+  transform: scale(0.9);
+}
+
 /* ----- TREE CARDS (SVG) ----- */
 .tree-card {
   cursor: pointer;
@@ -665,17 +705,95 @@ html, body {
   filter: brightness(1.25);
 }
 
+/* ----- TREE LINKS BY TYPE ----- */
 .tree-link {
   stroke: var(--slate-600);
   stroke-width: 1.5;
   fill: none;
   stroke-linejoin: round;
+  transition: stroke var(--transition-fast), stroke-width var(--transition-fast), filter var(--transition-fast);
 }
 
-.tree-link.spouse-link {
+.tree-link.link-parent {
+  stroke: var(--accent-primary);
+  stroke-width: 2;
+}
+
+.tree-link.link-parent.highlighted {
+  filter: drop-shadow(0 0 6px rgba(108, 140, 255, 0.5));
+  stroke-width: 2.5;
+}
+
+.tree-link.link-child {
+  stroke: var(--accent-success);
+  stroke-width: 2;
+  stroke-dasharray: 4 2;
+}
+
+.tree-link.link-child.highlighted {
+  filter: drop-shadow(0 0 6px rgba(52, 211, 153, 0.5));
+  stroke-width: 2.5;
+}
+
+.tree-link.link-spouse {
   stroke: var(--accent-warning);
-  stroke-width: 1.5;
+  stroke-width: 1.8;
   stroke-dasharray: 5 3;
+}
+
+.tree-link.link-spouse.highlighted {
+  filter: drop-shadow(0 0 6px rgba(251, 191, 36, 0.5));
+  stroke-width: 2.3;
+}
+
+.tree-link.highlighted {
+  stroke-width: 2.5;
+  filter: drop-shadow(0 0 6px rgba(108, 140, 255, 0.5));
+}
+
+/* ----- IMPORT TOAST ----- */
+.import-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 200;
+  background: var(--slate-800);
+  border: 1px solid var(--slate-700);
+  border-radius: var(--radius-md);
+  padding: 12px 24px;
+  box-shadow: var(--shadow-lg);
+  font-size: 13px;
+  color: var(--slate-200);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  backdrop-filter: blur(8px);
+  animation: toastIn 300ms ease-out;
+}
+
+.import-toast.success {
+  border-color: var(--accent-success);
+}
+
+.import-toast.error {
+  border-color: var(--accent-danger);
+}
+
+.import-toast .toast-close {
+  margin-left: 8px;
+  cursor: pointer;
+  color: var(--slate-400);
+  background: none;
+  border: none;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 2px;
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(12px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 
 /* ----- FAMILY LIST VIEW ----- */

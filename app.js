@@ -19,6 +19,14 @@
   let treeRootId = null;
   let nextId = 1;
 
+  // ---- Zoom / Pan state ----
+  let zoomLevel = 1;
+  let panX = 0;
+  let panY = 0;
+  let isPanning = false;
+  let panStartX = 0;
+  let panStartY = 0;
+
   // ---- DOM refs ----
   const $ = (sel) => document.querySelector(sel);
   const $$ = (sel) => document.querySelectorAll(sel);
@@ -51,9 +59,15 @@
     els.genealogyEmpty = $('#genealogyEmpty');
     els.genealogyTitle = $('#genealogyTitle');
     els.graphSvg = $('#graphSvg');
+    els.graphTransform = $('#graphTransform');
     els.graphNodes = $('#graphNodes');
     els.graphLinks = $('#graphLinks');
     els.contactsEmpty = $('#contactsEmpty');
+    els.zoomInBtn = $('#zoomInBtn');
+    els.zoomOutBtn = $('#zoomOutBtn');
+    els.resetViewBtn = $('#resetViewBtn');
+    els.importCsvBtn = $('#importCsvBtn');
+    els.importCsvInput = $('#importCsvInput');
 
     els.viewTreeBtn = $('#viewTreeBtn');
     els.viewListBtn = $('#viewListBtn');
@@ -502,10 +516,14 @@
       const midY = (y1 + y2) / 2;
       const d = `M ${x1} ${y1} L ${x1} ${midY} L ${x2} ${midY} L ${x2} ${y2}`;
       path.setAttribute('d', d);
-      path.setAttribute('class', 'tree-link');
+      const typeClass = r.type === 'parent' ? 'link-parent' : (r.type === 'child' ? 'link-child' : 'link-spouse');
+      path.setAttribute('class', `tree-link ${typeClass}`);
       path.setAttribute('data-from', r.fromId);
       path.setAttribute('data-to', r.toId);
       path.setAttribute('data-type', r.type);
+      if (r.type === 'parent') {
+        path.setAttribute('marker-end', 'url(#arrowLineage)');
+      }
       els.graphLinks.appendChild(path);
     });
 
@@ -523,7 +541,9 @@
         const my = Math.min(y1, y2) - 20;
         const d = `M ${x1} ${y1} Q ${mx} ${my} ${x2} ${y2}`;
         path.setAttribute('d', d);
-        path.setAttribute('class', 'tree-link spouse-link');
+        path.setAttribute('class', 'tree-link link-spouse');
+        path.setAttribute('data-from', rootContactId);
+        path.setAttribute('data-to', spouse);
         path.setAttribute('data-type', 'spouse');
         els.graphLinks.appendChild(path);
 
@@ -559,10 +579,20 @@
         const midY = (y1 + y2) / 2;
         const d = `M ${x1} ${y1} L ${x1} ${midY} L ${x2} ${midY} L ${x2} ${y2}`;
         path.setAttribute('d', d);
-        path.setAttribute('class', 'tree-link');
+        const typeClass = relCheck.type === 'parent' ? 'link-parent' : (relCheck.type === 'child' ? 'link-child' : 'link-spouse');
+        path.setAttribute('class', `tree-link ${typeClass}`);
+        path.setAttribute('data-from', gpId);
+        path.setAttribute('data-to', pId);
+        path.setAttribute('data-type', relCheck.type);
+        if (relCheck.type === 'parent') {
+          path.setAttribute('marker-end', 'url(#arrowLineage)');
+        }
         els.graphLinks.appendChild(path);
       });
     });
+
+    // Reset zoom/pan on fresh render
+    resetViewTransform();
   }
 
   // ---- Render: Family List View ----
@@ -945,6 +975,184 @@
     if (currentTab === 'genealogy') renderGenealogyGraph();
   }
 
+  // ---- Zoom / Pan ----
+  function applyTransform() {
+    if (els.graphTransform) {
+      els.graphTransform.setAttribute('transform', `translate(${panX}, ${panY}) scale(${zoomLevel})`);
+    }
+  }
+
+  function resetViewTransform() {
+    zoomLevel = 1;
+    panX = 0;
+    panY = 0;
+    applyTransform();
+  }
+
+  function zoomIn() {
+    const oldZoom = zoomLevel;
+    zoomLevel = Math.min(zoomLevel * 1.35, 5);
+    const cx = els.genealogyCanvas.clientWidth / 2;
+    const cy = els.genealogyCanvas.clientHeight / 2;
+    panX = cx - (cx - panX) * (zoomLevel / oldZoom);
+    panY = cy - (cy - panY) * (zoomLevel / oldZoom);
+    applyTransform();
+  }
+
+  function zoomOut() {
+    const oldZoom = zoomLevel;
+    zoomLevel = Math.max(zoomLevel / 1.35, 0.2);
+    const cx = els.genealogyCanvas.clientWidth / 2;
+    const cy = els.genealogyCanvas.clientHeight / 2;
+    panX = cx - (cx - panX) * (zoomLevel / oldZoom);
+    panY = cy - (cy - panY) * (zoomLevel / oldZoom);
+    applyTransform();
+  }
+
+  // ---- CSV Import ----
+  function parseCsv(text) {
+    const rows = [];
+    let current = '';
+    let inQuotes = false;
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      if (ch === '"') {
+        if (inQuotes && i + 1 < text.length && text[i + 1] === '"') {
+          current += '"';
+          i++;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (ch === '\n' && !inQuotes) {
+        rows.push(current);
+        current = '';
+      } else if (ch === '\r' && !inQuotes) {
+      } else {
+        current += ch;
+      }
+    }
+    if (current) rows.push(current);
+    return rows.map(function (line) {
+      const fields = [];
+      let field = '';
+      let inQ = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"' && !inQ) {
+          inQ = true;
+        } else if (ch === '"' && inQ) {
+          if (i + 1 < line.length && line[i + 1] === '"') {
+            field += '"';
+            i++;
+          } else {
+            inQ = false;
+          }
+        } else if (ch === ',' && !inQ) {
+          fields.push(field.trim());
+          field = '';
+        } else {
+          field += ch;
+        }
+      }
+      fields.push(field.trim());
+      return fields;
+    });
+  }
+
+  function importCsv(file) {
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      try {
+        const text = e.target.result;
+        const rows = parseCsv(text);
+        if (rows.length < 2) {
+          showToast('CSV must have a header row and at least one data row.', 'error');
+          return;
+        }
+        const headers = rows[0].map(function (h) { return h.toLowerCase().replace(/[^a-z\s]/g, '').trim(); });
+        const fieldMap = {
+          firstname: 'firstName', 'first name': 'firstName', first: 'firstName',
+          lastname: 'lastName', 'last name': 'lastName', last: 'lastName', surname: 'lastName',
+          phone: 'phone', telephone: 'phone', tel: 'phone', mobile: 'phone',
+          email: 'email', 'e-mail': 'email', mail: 'email',
+          address: 'address', addr: 'address',
+          birthdate: 'birthDate', 'birth date': 'birthDate', dob: 'birthDate', 'date of birth': 'birthDate',
+          birthplace: 'birthPlace', 'birth place': 'birthPlace', 'place of birth': 'birthPlace',
+          deathdate: 'deathDate', 'death date': 'deathDate', dod: 'deathDate',
+          gender: 'gender', sex: 'gender',
+          group: 'group', category: 'group',
+          tags: 'tags', labels: 'tags', tag: 'tags',
+          notes: 'notes', note: 'notes', comments: 'notes',
+        };
+        const colIndex = {};
+        headers.forEach(function (h, i) {
+          if (fieldMap[h]) colIndex[fieldMap[h]] = i;
+        });
+        let added = 0;
+        let skipped = 0;
+        const duplicates = [];
+        const dataRows = rows.slice(1);
+        dataRows.forEach(function (row) {
+          if (row.length < 2) return;
+          const firstName = (row[colIndex.firstName] || '').trim();
+          const lastName = (row[colIndex.lastName] || '').trim();
+          if (!firstName && !lastName) return;
+          const phone = (row[colIndex.phone] || '').trim();
+          const email = (row[colIndex.email] || '').trim();
+          const dup = contacts.find(function (c) {
+            return (phone && c.phone === phone) || (email && c.email === email);
+          });
+          if (dup) {
+            skipped++;
+            duplicates.push({ name: (firstName + ' ' + lastName).trim(), field: phone ? 'phone' : 'email', value: phone || email });
+            return;
+          }
+          const tags = (row[colIndex.tags] || '').split(';').map(function (t) { return t.trim(); }).filter(Boolean);
+          contacts.push({
+            id: generateId(),
+            firstName: firstName,
+            lastName: lastName,
+            phone: phone,
+            email: email,
+            address: (row[colIndex.address] || '').trim(),
+            birthDate: (row[colIndex.birthDate] || '').trim(),
+            birthPlace: (row[colIndex.birthPlace] || '').trim(),
+            deathDate: (row[colIndex.deathDate] || '').trim(),
+            gender: (row[colIndex.gender] || '').trim(),
+            group: (row[colIndex.group] || '').trim(),
+            tags: tags,
+            notes: (row[colIndex.notes] || '').trim(),
+          });
+          added++;
+        });
+        saveState();
+        fullRender();
+        let msg = 'Imported ' + added + ' contact(s) from CSV.';
+        if (skipped > 0) msg += ' ' + skipped + ' duplicate(s) skipped.';
+        showToast(msg, skipped > 0 ? 'error' : 'success');
+      } catch (err) {
+        showToast('CSV import failed: ' + err.message, 'error');
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  // ---- Toast Notification ----
+  function showToast(message, type) {
+    var existing = document.querySelector('.import-toast');
+    if (existing) existing.remove();
+    var toast = document.createElement('div');
+    toast.className = 'import-toast ' + (type || 'success');
+    toast.innerHTML = '<span>' + message + '</span><button class="toast-close" type="button">&times;</button>';
+    document.body.appendChild(toast);
+    toast.querySelector('.toast-close').addEventListener('click', function () { toast.remove(); });
+    setTimeout(function () {
+      toast.style.opacity = '0';
+      toast.style.transition = 'opacity 300ms';
+      setTimeout(function () { toast.remove(); }, 300);
+    }, 5000);
+  }
+
   // ---- Event Binding ----
   function bindEmptyStateButtons() {
     if (els.emptyAddContactBtn) {
@@ -1225,6 +1433,83 @@
     els.importJsonInput.addEventListener('change', function (e) {
       if (this.files && this.files[0]) {
         importJson(this.files[0]);
+      }
+      this.value = '';
+    });
+
+    // ---- Zoom / Pan Controls ----
+    els.zoomInBtn.addEventListener('click', zoomIn);
+    els.zoomOutBtn.addEventListener('click', zoomOut);
+    els.resetViewBtn.addEventListener('click', resetViewTransform);
+
+    els.genealogyCanvas.addEventListener('wheel', function (e) {
+      if (currentTab !== 'genealogy' || genealogyViewMode !== 'tree') return;
+      e.preventDefault();
+      const rect = els.genealogyCanvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      const oldZoom = zoomLevel;
+      const delta = e.deltaY > 0 ? 0.8 : 1.25;
+      zoomLevel = Math.max(0.2, Math.min(5, zoomLevel * delta));
+      panX = mx - (mx - panX) * (zoomLevel / oldZoom);
+      panY = my - (my - panY) * (zoomLevel / oldZoom);
+      applyTransform();
+    }, { passive: false });
+
+    // Click-and-drag pan
+    els.genealogyCanvas.addEventListener('mousedown', function (e) {
+      if (e.button !== 0) return;
+      if (e.target.closest('.hud-btn') || e.target.closest('.graph-node') || e.target.closest('.canvas-empty-state')) return;
+      isPanning = true;
+      panStartX = e.clientX - panX;
+      panStartY = e.clientY - panY;
+      els.genealogyCanvas.style.cursor = 'grabbing';
+    });
+
+    document.addEventListener('mousemove', function (e) {
+      if (!isPanning) return;
+      panX = e.clientX - panStartX;
+      panY = e.clientY - panStartY;
+      applyTransform();
+    });
+
+    document.addEventListener('mouseup', function () {
+      if (isPanning) {
+        isPanning = false;
+        els.genealogyCanvas.style.cursor = '';
+      }
+    });
+
+    // Hover highlight: light up connected links on card hover
+    els.graphNodes.addEventListener('mouseover', function (e) {
+      const node = e.target.closest('.graph-node');
+      if (!node) return;
+      const id = node.dataset.id;
+      els.graphLinks.querySelectorAll('.tree-link').forEach(function (link) {
+        if (link.getAttribute('data-from') === id || link.getAttribute('data-to') === id) {
+          link.classList.add('highlighted');
+        }
+      });
+    });
+
+    els.graphNodes.addEventListener('mouseout', function (e) {
+      const node = e.target.closest('.graph-node');
+      if (!node) return;
+      const id = node.dataset.id;
+      els.graphLinks.querySelectorAll('.tree-link.highlighted').forEach(function (link) {
+        if (link.getAttribute('data-from') === id || link.getAttribute('data-to') === id) {
+          link.classList.remove('highlighted');
+        }
+      });
+    });
+
+    // CSV Import
+    els.importCsvBtn.addEventListener('click', function () {
+      els.importCsvInput.click();
+    });
+    els.importCsvInput.addEventListener('change', function (e) {
+      if (this.files && this.files[0]) {
+        importCsv(this.files[0]);
       }
       this.value = '';
     });
