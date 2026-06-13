@@ -44,6 +44,9 @@
     els.contactsPanel = $('#contactsPanel');
     els.exportPanel = $('#exportPanel');
     els.contactTableBody = $('#contactTableBody');
+    els.contactTableHead = $('#contactTableHead');
+    els.emptyAddContactBtn = $('#emptyAddContactBtn');
+    els.emptyImportBtn = $('#emptyImportBtn');
     els.genealogyCanvas = $('#genealogyCanvas');
     els.genealogyEmpty = $('#genealogyEmpty');
     els.genealogyTitle = $('#genealogyTitle');
@@ -132,25 +135,9 @@
 
   function seedDemoData() {
     if (contacts.length > 0) return;
-
-    contacts = [
-      { id: 1, firstName: 'John', lastName: 'Doe', phone: '+1-555-0101', email: 'john.doe@example.com', address: '742 Evergreen Terrace, Springfield', birthDate: '1945-03-12', birthPlace: 'Springfield, IL', deathDate: '', gender: 'male', group: '', tags: ['paternal', 'ancestor'], notes: 'Family patriarch.' },
-      { id: 2, firstName: 'Jane', lastName: 'Doe', phone: '+1-555-0102', email: 'jane.doe@example.com', address: '742 Evergreen Terrace, Springfield', birthDate: '1948-07-25', birthPlace: 'Shelbyville, IL', deathDate: '', gender: 'female', group: '', tags: ['maternal', 'ancestor'], notes: '' },
-      { id: 3, firstName: 'Michael', lastName: 'Doe', phone: '+1-555-0103', email: 'michael.doe@example.com', address: '456 Oak Ave, Springfield', birthDate: '1972-11-03', birthPlace: 'Springfield, IL', deathDate: '', gender: 'male', group: 'immediate-family', tags: ['paternal'], notes: '' },
-      { id: 4, firstName: 'Sarah', lastName: 'Doe', phone: '+1-555-0104', email: 'sarah.doe@example.com', address: '456 Oak Ave, Springfield', birthDate: '1975-06-18', birthPlace: 'Portland, OR', deathDate: '', gender: 'female', group: 'immediate-family', tags: ['maternal'], notes: '' },
-      { id: 5, firstName: 'Emily', lastName: 'Doe', phone: '+1-555-0105', email: 'emily.doe@example.com', address: '456 Oak Ave, Springfield', birthDate: '2001-09-30', birthPlace: 'Springfield, IL', deathDate: '', gender: 'female', group: 'immediate-family', tags: ['custom'], notes: '' },
-      { id: 6, firstName: 'Robert', lastName: 'Smith', phone: '+1-555-0201', email: 'robert.smith@example.com', address: '890 Pine St, Metropolis', birthDate: '1980-01-15', birthPlace: 'Metropolis, NY', deathDate: '', gender: 'male', group: 'work', tags: ['colleague'], notes: 'Colleague at Acme Corp.' },
-    ];
-    relationships = [
-      { id: 1, fromId: 1, toId: 2, type: 'spouse' },
-      { id: 2, fromId: 1, toId: 3, type: 'parent' },
-      { id: 3, fromId: 1, toId: 4, type: 'parent' },
-      { id: 4, fromId: 2, toId: 3, type: 'parent' },
-      { id: 5, fromId: 2, toId: 4, type: 'parent' },
-      { id: 6, fromId: 3, toId: 5, type: 'parent' },
-      { id: 7, fromId: 4, toId: 5, type: 'parent' },
-    ];
-    nextId = 7;
+    contacts = [];
+    relationships = [];
+    nextId = 1;
     saveState();
   }
 
@@ -291,7 +278,7 @@
     els.recordCount.textContent = list.length;
 
     if (list.length === 0) {
-      els.contactList.innerHTML = `<li class="contact-item" style="cursor:default;color:var(--slate-500);justify-content:center;padding:24px;">No records found</li>`;
+      els.contactList.innerHTML = `<li class="contact-item" style="cursor:default;color:var(--slate-500);justify-content:center;padding:24px;text-align:center;flex-direction:column;gap:4px;"><span>No records found</span><span style="font-size:12px;color:var(--slate-600);">Add a contact to get started</span></li>`;
       return;
     }
 
@@ -317,12 +304,46 @@
   // ---- Render: Contact Table (tab 2) ----
   function renderContactTable() {
     const list = getFilteredList();
+    const hasAnyContacts = contacts.length > 0;
 
     if (list.length === 0) {
       els.contactTableBody.innerHTML = '';
+      els.contactTableHead.hidden = true;
       els.contactsEmpty.hidden = false;
+
+      if (!hasAnyContacts) {
+        els.contactsEmpty.innerHTML = `
+          <div class="onboarding-card">
+            <div class="onboarding-icon" aria-hidden="true">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                <line x1="12" y1="11" x2="12" y2="12"/>
+              </svg>
+            </div>
+            <h2 class="onboarding-title">Welcome to your Genealogy Workspace</h2>
+            <p class="onboarding-subtitle">Get started by adding your first contact or importing an existing tree backup.</p>
+            <div class="onboarding-actions">
+              <button class="btn btn-primary" id="emptyAddContactBtn" type="button">
+                <span aria-hidden="true">+</span> Add First Contact
+              </button>
+              <button class="btn btn-ghost" id="emptyImportBtn" type="button">
+                <span aria-hidden="true">&uarr;</span> Import JSON Backup
+              </button>
+            </div>
+          </div>
+        `;
+        els.emptyAddContactBtn = document.getElementById('emptyAddContactBtn');
+        els.emptyImportBtn = document.getElementById('emptyImportBtn');
+        bindEmptyStateButtons();
+      } else {
+        els.contactsEmpty.innerHTML = '<p>No contacts match your current filters.</p><p class="text-muted">Try adjusting your search or group selection.</p>';
+      }
       return;
     }
+    els.contactTableHead.hidden = false;
     els.contactsEmpty.hidden = true;
 
     els.contactTableBody.innerHTML = list.map(c => {
@@ -925,6 +946,19 @@
   }
 
   // ---- Event Binding ----
+  function bindEmptyStateButtons() {
+    if (els.emptyAddContactBtn) {
+      els.emptyAddContactBtn.addEventListener('click', function () {
+        openModal(null);
+      });
+    }
+    if (els.emptyImportBtn) {
+      els.emptyImportBtn.addEventListener('click', function () {
+        els.importJsonInput.click();
+      });
+    }
+  }
+
   function bindEvents() {
     // Search
     els.searchInput.addEventListener('input', function () {
@@ -1210,6 +1244,7 @@
     loadState();
     seedDemoData();
     bindEvents();
+    bindEmptyStateButtons();
     fullRender();
     els.genealogyPanel.classList.add('active');
     els.genealogyPanel.hidden = false;

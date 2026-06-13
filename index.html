@@ -124,7 +124,7 @@
           </div>
           <div class="table-wrapper">
             <table class="contact-table" id="contactTable" aria-label="Contacts">
-              <thead>
+              <thead id="contactTableHead" hidden>
                 <tr>
                   <th scope="col">Name</th>
                   <th scope="col">Phone</th>
@@ -136,8 +136,27 @@
               <tbody id="contactTableBody"></tbody>
             </table>
             <div class="canvas-empty-state" id="contactsEmpty">
-              <p>No contacts found.</p>
-              <p class="text-muted">Use the Add Contact button to get started.</p>
+              <div class="onboarding-card">
+                <div class="onboarding-icon" aria-hidden="true">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                    <circle cx="9" cy="7" r="4"/>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                    <line x1="12" y1="11" x2="12" y2="12"/>
+                  </svg>
+                </div>
+                <h2 class="onboarding-title">Welcome to your Genealogy Workspace</h2>
+                <p class="onboarding-subtitle">Get started by adding your first contact or importing an existing tree backup.</p>
+                <div class="onboarding-actions">
+                  <button class="btn btn-primary" id="emptyAddContactBtn" type="button">
+                    <span aria-hidden="true">+</span> Add First Contact
+                  </button>
+                  <button class="btn btn-ghost" id="emptyImportBtn" type="button">
+                    <span aria-hidden="true">&uarr;</span> Import JSON Backup
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </section>
